@@ -24,13 +24,26 @@ async def _run(prompt: str) -> int:
     sales_manager = build_sales_manager(settings)
     try:
         with trace("Automated SDR"):
-            await Runner.run(sales_manager, prompt)
+            # 3 personas + 1 pick + 1 handoff + 3 email-mgr tools = ~8 turns happy path;
+            # 20 leaves headroom for the model to retry a tool call without aborting.
+            result = await Runner.run(sales_manager, prompt, max_turns=20)
     except InputGuardrailTripwireTriggered as exc:
         print(f"Input guardrail tripped: refusing to send. Details: {exc}")
         return 2
     except OutputGuardrailTripwireTriggered as exc:
         print(f"Output guardrail tripped: a draft was rejected. Details: {exc}")
         return 3
+
+    # The handoff to Email Manager is the only path that actually sends mail.
+    # If the manager replied directly instead of invoking it, no send happened.
+    final_agent = result.last_agent.name if result.last_agent else "<unknown>"
+    if final_agent != "Email Manager":
+        print(
+            f"No email sent. The Sales Manager finished without handing off to "
+            f"the Email Manager (last agent: {final_agent!r}). Check the trace "
+            f"to see where the chain stopped."
+        )
+        return 4
     print(f"Done. Email sent to {settings.to_email} (check inbox/spam).")
     return 0
 

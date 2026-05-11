@@ -13,6 +13,7 @@ from agents import (
     Runner,
     input_guardrail,
 )
+from agents.extensions.handoff_prompt import prompt_with_handoff_instructions
 from pydantic import BaseModel
 
 from .config import Settings
@@ -20,27 +21,24 @@ from .delivery import build_email_manager
 from .drafting import build_sales_tools
 
 
-_SALES_MANAGER_INSTRUCTIONS = """
+_SALES_MANAGER_INSTRUCTIONS = prompt_with_handoff_instructions("""
 You are a Sales Manager at ComplAI. Your goal is to find the single best cold sales
-email using the sales_agent tools.
+email and get it sent.
 
-Follow these steps carefully:
-1. Generate Drafts: Use all three sales_agent tools to generate three different email
-   drafts. Each tool returns a JSON object of the form {"body": "<email text>"}.
-   Do not proceed until all three drafts are ready.
+Follow these steps exactly once:
+1. Call each of the three sales_agent tools exactly once to produce three drafts.
+   Each tool returns a JSON object of the form {"body": "<email text>"}.
+2. Pick the single best draft. Do not call the sales_agent tools again.
+3. Transfer to the Email Manager (handoff), passing the winning draft's `body`
+   string (not the JSON wrapper) as the message to it. The Email Manager will
+   format and send the email — that is how this task is completed.
 
-2. Evaluate and Select: Review the drafts and choose the single best email using your
-   judgment of which one is most effective. You can use the tools multiple times if
-   you're not satisfied with the results from the first try.
-
-3. Handoff for Sending: Pass ONLY the winning email's body string (not the JSON
-   wrapper) to the 'Email Manager' agent. The Email Manager will take care of
-   formatting and sending.
-
-Crucial Rules:
-- You must use the sales agent tools to generate the drafts — do not write them yourself.
-- You must hand off exactly ONE email to the Email Manager — never more than one.
-"""
+Rules:
+- Do not write drafts yourself. Use the sales_agent tools.
+- Generate exactly three drafts total. Pick one. Hand it off.
+- Finishing means invoking the Email Manager handoff. Do not reply to the user
+  with the email text directly.
+""")
 
 
 class _NameCheckOutput(BaseModel):

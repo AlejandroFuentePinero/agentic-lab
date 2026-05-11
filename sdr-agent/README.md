@@ -81,7 +81,7 @@ uv run python -m src                                # default brief
 uv run python -m src "Send a cold email to Dear VP of Engineering"
 ```
 
-Exit codes: `0` on success, `2` if the input guardrail trips, `3` if an output guardrail trips.
+Exit codes: `0` on success, `2` if the input guardrail trips, `3` if an output guardrail trips, `4` if the Sales Manager finished without handing off to the Email Manager (no email sent).
 
 If nothing arrives, check your spam folder first — SendGrid sends frequently land there until the recipient marks them as Not Spam.
 

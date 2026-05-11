@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual env
+.venv/
+venv/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Test / type / lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Chroma persistent stores (default local paths)
+chroma/
+.chroma/
+
+example-code/

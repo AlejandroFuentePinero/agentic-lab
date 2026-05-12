@@ -21,7 +21,7 @@ Each project's README has its own architecture diagram, prerequisite list (which
 
 - **Python 3.12+**, dependency-managed with [`uv`](https://docs.astral.sh/uv/). The lockfile is committed and shared across every project.
 - **[`openai-agents`](https://github.com/openai/openai-agents-python)** as the agent runtime. Multi-provider routing via `litellm` (Anthropic + OpenAI today; trivially extendable to Google, Groq, etc.).
-- **`pytest`** for tests, with config in the root `pyproject.toml` so the suite runs from anywhere in the repo.
+- **`pytest`** for tests. Each project has its own pytest config (`pytest.ini` or settings in the root `pyproject.toml`) so the agents' `src/` packages don't clash on import. Run tests from inside each project directory.
 
 A single `pyproject.toml` at the root keeps dependencies aligned across all projects. If a future project ever needs incompatible deps, the plan is to migrate to `[tool.uv.workspace]` members.
 
@@ -71,7 +71,7 @@ agentic-lab/
 └── <project>/             ← one directory per project
     ├── README.md          ← project-specific docs — start here when exploring a project
     ├── src/               ← runnable Python package (python -m src)
-    └── tests/             ← project tests, discoverable via `uv run pytest`
+    └── tests/             ← project tests; run via `uv run pytest` from inside the project directory
 ```
 
 Conventions inside each project: a `src/` package built as a small number of **deep** modules (one per capability) rather than many shallow files, and a `tests/` folder runnable from the repo root via the shared pytest config. New projects follow the same shape so navigating between them stays predictable.

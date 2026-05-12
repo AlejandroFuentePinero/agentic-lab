@@ -1,8 +1,8 @@
 # deep-researcher
 
-A small multi-agent **deep research** tool built on the [`openai-agents`](https://github.com/openai/openai-agents-python) SDK. Plans a set of web searches from a user query, runs them in parallel, synthesises the results into a long-form markdown report, **critiques** the draft against a fixed rubric, and revises once if the critic flags issues — then saves the final report locally. Driven through a Gradio UI with live progress.
+A small multi-agent **deep research** tool built on the [`openai-agents`](https://github.com/openai/openai-agents-python) SDK. Plans a set of web searches from a user query, runs them in parallel, synthesises the results into a long-form markdown report, **critiques** the draft against a fixed rubric, and revises up to twice if the critic flags issues — then saves the final report locally. Driven through a Gradio UI with live progress.
 
-This project is the second inhabitant of the [`agentic-lab`](../) monorepo. It is a re-implementation of the deep-research example in `example-code/deep_research-example/`, with two intentional differences: a **critic + one-revision** loop (new pattern not exercised by `sdr-agent`), and **local markdown persistence** instead of SendGrid delivery.
+This project is the second inhabitant of the [`agentic-lab`](../) monorepo. It is a re-implementation of the deep-research example in `example-code/deep_research-example/`, with two intentional differences: a **critic + bounded revision loop** (new pattern not exercised by `sdr-agent`), and **local markdown persistence** instead of SendGrid delivery.
 
 ---
 
@@ -38,8 +38,8 @@ flowchart LR
 1. The user enters a query in the **Gradio UI**.
 2. The **Planner** turns the query into a structured `WebSearchPlan` — a list of `N` (default 5) `WebSearchItem`s, each with a search term and a reason.
 3. `N` **Search Agents** run in parallel; each calls OpenAI's hosted `WebSearchTool` (`tool_choice="required"`) and summarises the results in 2–3 paragraphs.
-4. The **Writer** synthesises the summaries into a long-form markdown report (structured `ReportData`: short summary + full report + follow-up questions).
-5. The **Critic** scores the draft against a fixed three-criterion rubric (addresses the query · claims grounded in sources · coherent structure) and returns a strict pass/fail (`CritiqueResult`).
+4. The **Writer** synthesises the summaries into a long-form markdown report (structured `ReportData`: short summary + full report + follow-up questions + `sources` list of URLs cited in the body). Every substantive claim must be followed by a standard markdown-link citation `[text](<url>)` where the URL came from a search summary.
+5. The **Critic** scores the draft against a fixed three-criterion rubric — (1) **citation grounding** (every cited URL must come from a search summary; every URL in `sources` must appear in the body; every substantive claim must carry a markdown-link citation), (2) **query coverage**, (3) **structural coherence** — and returns a strict pass/fail (`CritiqueResult`).
 6. If `Critic 1` fails the draft, the **Writer** is re-run with the previous draft and the issues attached, producing **draft 2**. The **Critic runs a second time** on draft 2. If `Critic 2` passes, ship. If `Critic 2` fails, its issues are yielded to the status feed *and* fed into one final revision pass — **draft 3** — which is shipped as-is (no `Critic 3`). Hard cap: writer runs at most 3 times, critic at most 2 times.
 7. The final report is saved to `reports/{utc-timestamp}--{slug}.md` and yielded back to the Gradio UI.
 
@@ -88,10 +88,16 @@ Planning searches…
 Planned 5 searches. Searching…
 Got 5 search summaries. Writing draft report…
 Draft ready. Critiquing…
-Critic flagged 2 issue(s). Revising once more…
-Revision complete.
+Critic flagged 3 issue(s). Revising once more…
+Revision complete. Re-reviewing the revised draft…
+Revised draft still has 2 issue(s). Doing one more revision pass (no further review after this — see remaining issues below):
+  - URL https://… in sources does not appear in any search summary
+  - Claim about X has no supporting markdown-link citation
+Final revision complete. Saving.
 Saved to reports/2026-05-12T143052Z--your-query-here.md
 ```
+
+The happy path (`Critic 1` passes the first draft) is shorter — most runs land somewhere between that and the full three-draft path shown above.
 
 The final report is rendered in the Gradio output pane (or printed to stdout in CLI mode) *and* saved on disk under `reports/`.
 

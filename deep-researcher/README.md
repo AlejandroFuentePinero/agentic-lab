@@ -51,7 +51,7 @@ flowchart LR
 | Parallel tool calls  | `asyncio.as_completed` over `N` Search Agent runs                                              |
 | Hosted tool          | `WebSearchTool(search_context_size="low")` with `tool_choice="required"`                       |
 | Critic + revision    | Orchestrator-driven loop: write → critique 1 → (if fail) revise → critique 2 → (if fail again) revise once more, then ship. Writer runs ≤3 times, critic ≤2. |
-| Citation grounding   | Search agents emit URLs in their summaries → writer cites inline `[Source: <url>]` and lists them in `sources` → critic fails the draft if any cited URL didn't come from a search summary, forcing the writer to either ground or remove the claim |
+| Citation grounding   | Search agents emit URLs in their summaries → writer cites every substantive claim with a standard markdown link `[text](<url>)` and lists those URLs in `sources` → critic fails the draft if any cited URL didn't come from a search summary, forcing the writer to either ground or remove the claim. Standard markdown means no custom syntax — link text is free-form, only the URL is the contract. |
 | Async generator      | `ResearchManager.run` yields status strings so CLI/UI consumers share one streaming contract   |
 | Tracing              | `with trace("Deep research", trace_id=…)` wraps the whole run; URL yielded as the first status |
 

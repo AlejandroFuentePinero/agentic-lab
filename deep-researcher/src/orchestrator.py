@@ -141,9 +141,9 @@ class ResearchManager:
             f"Critic issues to address:\n{issues_block}\n\n"
             f"Produce a revised report addressing every listed issue. "
             f"Preserve content the issues don't object to. The same citation "
-            f"rules apply: every inline `[Source: <url>]` citation must appear "
-            f"in `sources`, and every URL in `sources` must come from the "
-            f"search summaries."
+            f"rules apply: every URL cited in the body (inside any markdown "
+            f"link `[text](<url>)`) must appear in `sources`, and every URL "
+            f"in `sources` must come from the search summaries."
         )
         result = await Runner.run(self._writer, prompt)
         return result.final_output_as(ReportData)

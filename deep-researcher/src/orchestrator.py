@@ -132,18 +132,12 @@ class ResearchManager:
         issues: list[str],
     ) -> ReportData:
         issues_block = "\n".join(f"- {i}" for i in issues)
-        previous_sources = "\n".join(f"- {u}" for u in previous.sources) or "(none)"
         prompt = (
             f"Original query: {query}\n"
             f"Summarised search results: {search_results}\n\n"
             f"Previous draft:\n---\n{previous.markdown_report}\n---\n\n"
-            f"Previous sources:\n{previous_sources}\n\n"
             f"Critic issues to address:\n{issues_block}\n\n"
-            f"Produce a revised report addressing every listed issue. "
-            f"Preserve content the issues don't object to. The same citation "
-            f"rules apply: every URL cited in the body (inside any markdown "
-            f"link `[text](<url>)`) must appear in `sources`, and every URL "
-            f"in `sources` must come from the search summaries."
+            f"Produce a revised report addressing every listed issue."
         )
         result = await Runner.run(self._writer, prompt)
         return result.final_output_as(ReportData)

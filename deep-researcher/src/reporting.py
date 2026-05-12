@@ -116,9 +116,6 @@ these three criteria, in order:
      study, or named position) must be followed by a markdown-link citation.
      Vague introductory framing doesn't need one; specific factual claims do.
      If substantive claims appear without citations, fail the draft.
-   - Be especially suspicious of any claim that pairs a major institution
-     ("Anthropic", "The Atlantic", a named university) with a year but has no
-     supporting markdown link — that's the classic hallucination shape.
 
 2. **Query coverage.** The report addresses every part of the original query.
    No drift into adjacent topics; no missing sub-questions.

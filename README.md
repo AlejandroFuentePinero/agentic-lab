@@ -1,4 +1,4 @@
-# agentic-lab
+# Agentic AI Lab
 
 A personal lab for **small and medium agentic AI projects** — multi-agent systems built on top of LLMs, each contained in its own subdirectory and runnable on its own. Every project explores a different set of patterns (orchestration, tool use, guardrails, structured outputs, retrieval, …) on the same shared toolchain (Python 3.12 + `uv` + the OpenAI Agents SDK).
 
@@ -11,6 +11,7 @@ Pick a project, read its README, run it. Nothing in this repo depends on anythin
 | Project | What it does | Status |
 | --- | --- | --- |
 | [`sdr-agent`](./sdr-agent) | Multi-agent **Sales Development Representative**. Drafts three persona-flavoured cold emails in parallel (Anthropic Sonnet), picks the best one, formats it as HTML and ships it through SendGrid — driven by an LLM Sales Manager that uses sub-agents as tools, performs a handoff to a delivery agent, and applies both an input and an output guardrail. | Shipped |
+| [`deep-researcher`](./deep-researcher) | Multi-agent **deep research** tool. Plans web searches from a user query, runs them in parallel via OpenAI's hosted `WebSearchTool`, synthesises results into a long-form markdown report, then runs a strict **critic** that grounds every cited URL against the search results — driving up to two bounded revision passes when it finds fabricated or unsupported citations. Reports save locally with a References section listing every URL the writer relied on, and stream live through a Gradio UI (also runnable headless from the CLI). | Shipped |
 
 Each project's README has its own architecture diagram, prerequisite list (which API keys it needs), and run commands. Diagrams use Mermaid and render natively on GitHub.
 
@@ -47,11 +48,14 @@ cd sdr-agent
 uv run python -m src              # see sdr-agent/README.md for required env vars
 ```
 
-Run the test suite (covers every project) from the repo root:
+Run the test suite for each project from its own directory:
 
 ```bash
-uv run pytest
+cd sdr-agent       && uv run pytest
+cd deep-researcher && uv run pytest
 ```
+
+Each project has its own `pytest.ini` (or root-level `pyproject.toml` config) so tests pick up the right `src/` package.
 
 ---
 

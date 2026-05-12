@@ -116,10 +116,12 @@ class ResearchManager:
     async def _critique(
         self, query: str, search_results: list[str], draft: ReportData
     ) -> CritiqueResult:
+        sources_block = "\n".join(f"- {u}" for u in draft.sources) or "(empty)"
         prompt = (
             f"Original query: {query}\n\n"
             f"Summarised search results: {search_results}\n\n"
-            f"Draft report:\n---\n{draft.markdown_report}\n---"
+            f"Draft `sources` list:\n{sources_block}\n\n"
+            f"Draft markdown body:\n---\n{draft.markdown_report}\n---"
         )
         result = await Runner.run(self._critic, prompt)
         return result.final_output_as(CritiqueResult)

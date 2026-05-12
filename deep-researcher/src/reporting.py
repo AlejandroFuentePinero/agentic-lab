@@ -79,16 +79,10 @@ REVISION RULES (only apply when a previous draft is given):
   grounding, not deleting.
 
 REPORT BODY STRUCTURE — strict rules:
-- The `markdown_report` field is the report BODY ONLY: introduction, body
-  sections, conclusion. Use `##` for major sections and `###` for subsections.
-- Do NOT include your own `## Summary`, `## References`, `## Sources`, or
-  `## Follow-up questions` sections in the body. Those are rendered separately
-  by the system from the `short_summary`, `sources`, and `follow_up_questions`
-  fields. Duplicating them produces a malformed saved file.
-
-Always return four fields: a 2–3 sentence summary, the full markdown report
-(with inline markdown-link citations as specified, body only), 3–5 follow-up
-questions worth researching next, and the `sources` list.
+- The `markdown_report` is the report body only: introduction, sections,
+  conclusion (`##` for sections, `###` for subsections).
+- Do NOT include `## Summary`, `## References`, `## Sources`, or
+  `## Follow-up questions` headings — the system adds those separately.
 """
 
 
@@ -123,12 +117,9 @@ these three criteria, in order:
 3. **Structural coherence.** Introduction → body → conclusion, with no orphan
    sections, dangling references, or contradictions between sections.
 
-Return `passes=True` if and only if all three criteria are met, with
-`issues=[]`. Otherwise return `passes=False` and a list of specific,
-actionable issues for the writer to fix. For citation failures, name the
-exact URL or claim and say what's wrong with it (e.g. "URL https://… in
-sources does not appear in any search summary" or "claim about X has no
-supporting markdown-link citation"). Do not nitpick style or word choice.
+Return `passes=True` only if all three criteria hold and `issues=[]`.
+Otherwise return `passes=False` with specific, actionable issues. For
+citation failures, name the exact URL or claim. Do not nitpick style.
 """
 
 

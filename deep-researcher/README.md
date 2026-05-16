@@ -1,8 +1,8 @@
 # deep-researcher
 
-A small multi-agent **deep research** tool built on the [`openai-agents`](https://github.com/openai/openai-agents-python) SDK. Plans a set of web searches from a user query, runs them in parallel, synthesises the results into a long-form markdown report, **critiques** the draft against a fixed rubric, and revises up to twice if the critic flags issues — then saves the final report locally. Driven through a Gradio UI with live progress.
+A small multi-agent **deep research** tool built on the [`openai-agents`](https://github.com/openai/openai-agents-python) SDK. Optionally **clarifies** an ambiguous query first, plans a set of web searches, runs them in parallel, synthesises the results into a long-form markdown report, **critiques** the draft against a fixed rubric, and revises up to twice if the critic flags issues — then saves the final report locally. Driven through a Gradio UI with live progress, or through a CLI for headless / scripted runs.
 
-This project is the second inhabitant of the [`agentic-lab`](../) monorepo. It is a re-implementation of the deep-research example in `example-code/deep_research-example/`, with two intentional differences: a **critic + bounded revision loop** (new pattern not exercised by `sdr-agent`), and **local markdown persistence** instead of SendGrid delivery.
+This project is the second inhabitant of the [`agentic-lab`](../) monorepo. It is a re-implementation of the deep-research example in `example-code/deep_research-example/`, with three intentional differences: a **conservative clarifier** that asks only when the answer would change which searches to run, a **critic + bounded revision loop** (new pattern not exercised by `sdr-agent`), and **local markdown persistence** instead of SendGrid delivery.
 
 ---
 
@@ -35,19 +35,21 @@ flowchart LR
 
 <sub>🟦 gpt-4o-mini (OpenAI) — planner, search, writer · 🟪 gpt-4o (OpenAI) — critic, given a stricter rubric and a stronger model because LLMs are prone to fabricating citations · ⬜ external service · `··>` agent-as-tool / hosted tool · solid arrow = orchestrator-driven control flow</sub>
 
-1. The user enters a query in the **Gradio UI**.
-2. The **Planner** turns the query into a structured `WebSearchPlan` — a list of `N` (default 5) `WebSearchItem`s, each with a search term and a reason.
-3. `N` **Search Agents** run in parallel; each calls OpenAI's hosted `WebSearchTool` (`tool_choice="required"`) and summarises the results in 2–3 paragraphs.
-4. The **Writer** synthesises the summaries into a long-form markdown report (structured `ReportData`: short summary + full report + follow-up questions + `sources` list of URLs cited in the body). Every substantive claim must be followed by a standard markdown-link citation `[text](<url>)` where the URL came from a search summary.
-5. The **Critic** scores the draft against a fixed three-criterion rubric — (1) **citation grounding** (every cited URL must come from a search summary; every URL in `sources` must appear in the body; every substantive claim must carry a markdown-link citation), (2) **query coverage**, (3) **structural coherence** — and returns a strict pass/fail (`CritiqueResult`).
-6. If `Critic 1` fails the draft, the **Writer** is re-run with the previous draft and the issues attached, producing **draft 2**. The **Critic runs a second time** on draft 2. If `Critic 2` passes, ship. If `Critic 2` fails, its issues are yielded to the status feed *and* fed into one final revision pass — **draft 3** — which is shipped as-is (no `Critic 3`). Hard cap: writer runs at most 3 times, critic at most 2 times.
-7. The final report is saved to `reports/{utc-timestamp}--{slug}.md` and yielded back to the Gradio UI.
+1. The user enters a query in the **Gradio UI** (or as a CLI argument).
+2. *Optional first step* — the **Clarifier** inspects the query and returns up to 3 essential ambiguity questions (region, timeframe, audience, scope). If the query is already specific, it returns an empty list and the pipeline proceeds directly. The orchestrator does **not** own the human-interaction loop: it exposes a `clarify(query)` method that returns questions, and the caller (CLI / Gradio / library user) is responsible for collecting answers. `run()` itself never asks — batch and scripted callers can ignore the clarifier entirely or pass `--no-clarify`.
+3. The **Planner** turns the query (plus any clarifications, treated as **hard constraints**) into a structured `WebSearchPlan` — a list of `N` (default 5) `WebSearchItem`s, each with a search term and a reason. Region constraints appear as literal keywords in each search term; timeframe constraints appear as a year or range; audience/scope constraints narrow the topic in the search term itself.
+4. `N` **Search Agents** run in parallel; each calls OpenAI's hosted `WebSearchTool` (`tool_choice="required"`) and summarises the results in 2–3 paragraphs.
+5. The **Writer** synthesises the summaries into a long-form markdown report (structured `ReportData`: short summary + full report + follow-up questions + `sources` list of URLs cited in the body). Every substantive claim must be followed by a standard markdown-link citation `[text](<url>)` where the URL came from a search summary.
+6. The **Critic** scores the draft against a fixed three-criterion rubric — (1) **citation grounding** (every cited URL must come from a search summary; every URL in `sources` must appear in the body; every substantive claim must carry a markdown-link citation), (2) **query coverage**, (3) **structural coherence** — and returns a strict pass/fail (`CritiqueResult`).
+7. If `Critic 1` fails the draft, the **Writer** is re-run with the previous draft and the issues attached, producing **draft 2**. The **Critic runs a second time** on draft 2. If `Critic 2` passes, ship. If `Critic 2` fails, its issues are yielded to the status feed *and* fed into one final revision pass — **draft 3** — which is shipped as-is (no `Critic 3`). Hard cap: writer runs at most 3 times, critic at most 2 times.
+8. The final report is saved to `reports/{utc-timestamp}--{slug}.md` and yielded back to the Gradio UI.
 
 ### Patterns exercised
 
 | Pattern              | Where                                                                                          |
 | -------------------- | ---------------------------------------------------------------------------------------------- |
-| Structured output    | `WebSearchPlan`, `ReportData` (incl. `sources: list[str]`), `CritiqueResult`                   |
+| Opt-in clarification | `ResearchManager.clarify(query)` returns questions; caller collects answers and passes them into `run(query, clarifications=...)`. Orchestrator never asks — batch/scripted callers ignore it. Bypass via `--no-clarify` (CLI) or a checkbox (Gradio). |
+| Structured output    | `WebSearchPlan`, `ReportData` (incl. `sources: list[str]`), `CritiqueResult`, `ClarificationQuestions` |
 | Parallel tool calls  | `asyncio.as_completed` over `N` Search Agent runs                                              |
 | Hosted tool          | `WebSearchTool(search_context_size="low")` with `tool_choice="required"`                       |
 | Critic + revision    | Orchestrator-driven loop: write → critique 1 → (if fail) revise → critique 2 → (if fail again) revise once more, then ship. Writer runs ≤3 times, critic ≤2. |
@@ -76,8 +78,9 @@ From the repo root:
 
 ```bash
 cd deep-researcher
-uv run python -m src                                 # launches the Gradio UI in your browser
-uv run python -m src "What is dark matter?"          # CLI mode: streams to stdout, no browser
+uv run python -m src                                              # launches the Gradio UI in your browser
+uv run python -m src "What is dark matter?"                       # CLI mode: clarifier prompts stdin if needed
+uv run python -m src "What is dark matter?" --no-clarify          # CLI mode, skip clarification
 ```
 
 Type a research question into the textbox (Gradio) or pass one as an argument (CLI), and watch the status feed:
@@ -123,31 +126,41 @@ The package follows the lab's "few deep modules" design — each module owns a c
 ```
 deep-researcher/
 ├── README.md
-├── pytest.ini             # per-agent pytest config (testpaths + pythonpath)
+├── pytest.ini              # per-agent pytest config (testpaths + pythonpath)
 ├── src/
-│   ├── __init__.py        # public API: Settings, load_settings, ResearchManager
-│   ├── __main__.py        # entry point: `python -m src` (Gradio) or `python -m src "<query>"` (CLI)
-│   ├── config.py          # Settings dataclass + load_settings (OPENAI_API_KEY only)
-│   ├── research.py        # Planner agent + Search agent + WebSearchPlan/WebSearchItem
-│   ├── reporting.py       # Writer agent + Critic agent + ReportData/CritiqueResult
-│   ├── storage.py         # slugify + save_report (pure Python, no agents)
-│   └── orchestrator.py    # ResearchManager: async generator wiring it all together
-└── tests/
-    ├── conftest.py        # stub `settings` fixture; disables real .env loading
-    ├── test_config.py     # required key, defaults, direct construction
-    ├── test_storage.py    # slug edge cases, filename format, file contents
-    └── test_wiring.py     # agent-graph shape (names, output_types, tool counts, tool_choice)
+│   ├── __init__.py         # public API: Settings, load_settings, ResearchManager, Clarification
+│   ├── __main__.py         # entry point: `python -m src` (Gradio) or `python -m src "<query>"` (CLI)
+│   ├── config.py           # Settings dataclass + load_settings (OPENAI_API_KEY only)
+│   ├── clarification.py    # Clarifier agent + Clarification/ClarificationQuestions models
+│   ├── research.py         # Planner agent + Search agent + WebSearchPlan/WebSearchItem
+│   ├── reporting.py        # Writer agent + Critic agent + ReportData/CritiqueResult
+│   ├── storage.py          # slugify + save_report (pure Python, no agents)
+│   └── orchestrator.py     # ResearchManager: clarify() + run() async generator
+├── tests/
+│   ├── conftest.py         # stub `settings` fixture; disables real .env loading
+│   ├── test_config.py      # required key, defaults, direct construction
+│   ├── test_storage.py     # slug edge cases, filename format, file contents
+│   └── test_wiring.py      # agent-graph shape (names, output_types, tool counts, tool_choice)
+└── evals/
+    └── test_planner_respects_clarifications.py  # live OpenAI eval — runs manually
 ```
 
 Public API:
 
 ```python
-from src import Settings, load_settings, ResearchManager
+from src import Clarification, ResearchManager, load_settings
 
 manager = ResearchManager(load_settings())
-async for chunk in manager.run("What is dark matter?"):
+
+# Optional clarification step — caller decides whether to invoke it.
+questions = await manager.clarify("Tax rules on remote work")
+clarifications = [Clarification(question=questions[0], answer="Spain")] if questions else None
+
+async for chunk in manager.run("Tax rules on remote work", clarifications=clarifications):
     print(chunk)
 ```
+
+`run()` works fine without ever touching the clarifier — pass nothing (or `clarifications=None`) and the pipeline behaves exactly like before.
 
 ---
 
@@ -165,4 +178,21 @@ uv run pytest                                       # all tests
 uv run pytest tests/test_storage.py -v              # one file
 ```
 
-The suite covers the bits that can break without an LLM in the loop: env validation in `config.py`, slug + filename + persistence behaviour in `storage.py`, and agent-graph wiring (which agents exist, their `output_type`, tool counts, `tool_choice`) in `research.py` and `reporting.py`. No network calls — `load_dotenv` is neutralised by `conftest.py`. LLM-driven behaviour (whether the planner picks *good* queries, whether the critic is a *useful* reviewer, the full revision loop) is intentionally not unit-tested, since mocking the model would only test the SDK rather than this code; that's verified by running the UI end-to-end.
+The suite covers the bits that can break without an LLM in the loop: env validation in `config.py`, slug + filename + persistence behaviour in `storage.py`, and agent-graph wiring (which agents exist, their `output_type`, tool counts, `tool_choice`) in `research.py`, `reporting.py`, and `clarification.py`. No network calls — `load_dotenv` is neutralised by `conftest.py`. LLM-driven behaviour (whether the planner picks *good* queries, whether the critic is a *useful* reviewer, the full revision loop) is intentionally not unit-tested, since mocking the model would only test the SDK rather than this code; that's verified by running the UI end-to-end.
+
+### Evals
+
+One LLM-dependent contract is asserted by a live eval rather than a unit test:
+
+```bash
+cd deep-researcher
+uv run python -m evals.test_planner_respects_clarifications
+```
+
+This eval hits the real OpenAI API and verifies that when the orchestrator
+hands a clarification (region, timeframe, scope) to the planner, the planner
+actually embeds that constraint as a keyword in the majority of search terms
+it emits. Without it, a regression to the planner prompt could silently strip
+clarifications from the search plan and only show up as user-visible quality
+issues. Run it whenever you touch the planner instructions or the
+clarifications prompt block.

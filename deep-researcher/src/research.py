@@ -28,7 +28,20 @@ def build_planner(settings: Settings) -> Agent:
         f"You are a research planner. Given a user query, produce exactly "
         f"{settings.num_searches} distinct web searches that together best "
         f"answer the query. For each search, give a short reason and the exact "
-        f"query term to use."
+        f"query term to use.\n\n"
+        f"If the prompt includes a `Clarifications` block (question/answer "
+        f"pairs the user provided to sharpen the query), treat each answer as "
+        f"a HARD CONSTRAINT on every search you generate:\n"
+        f"- A region or jurisdiction answer must appear as a literal keyword "
+        f"inside each search term (e.g. country name, 'EU', state code).\n"
+        f"- A timeframe answer must appear as a year, year range, or date "
+        f"keyword inside each search term (e.g. '2025', 'last 12 months').\n"
+        f"- An audience or scope answer must narrow the topic inside the "
+        f"search term itself (e.g. 'for beginners', 'policy', 'alignment').\n"
+        f"Every search must reflect every clarification. A generic search "
+        f"that ignores a clarification is a failure mode — if you need a "
+        f"general-context query, embed the constraint anyway (e.g. "
+        f"'overview of X in <region>' rather than 'overview of X')."
     )
     return Agent(
         name="Planner",

@@ -1,9 +1,12 @@
-"""Orchestrates plan → search → write → critique → (revise) → save.
+"""Orchestrates (clarify →) plan → search → write → critique → (revise) → save.
 
-The flow is an async generator that yields human-readable status strings as it
-progresses, so both CLI inspection and the Gradio UI can consume the same
-contract. The critic + one-revision loop is the only non-trivial piece of
-control flow; everything else is sequential composition.
+The pipeline is an async generator that yields human-readable status strings
+as it progresses, so both CLI inspection and the Gradio UI can consume the
+same contract. Clarification sits *outside* `run()` — the caller asks for
+questions via `clarify()`, collects answers however its environment dictates
+(stdin, Gradio form, anything), and passes them into `run(query,
+clarifications=...)`. `run()` itself never asks a question, so batch and
+scripted callers can ignore the clarifier entirely.
 """
 
 from __future__ import annotations
@@ -13,6 +16,11 @@ from typing import AsyncIterator
 
 from agents import Runner, gen_trace_id, trace
 
+from .clarification import (
+    Clarification,
+    ClarificationQuestions,
+    build_clarifier,
+)
 from .config import Settings
 from .reporting import CritiqueResult, ReportData, build_critic, build_writer
 from .research import WebSearchItem, WebSearchPlan, build_planner, build_search_agent
@@ -22,18 +30,37 @@ from .storage import save_report
 class ResearchManager:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
+        self._clarifier = build_clarifier(settings)
         self._planner = build_planner(settings)
         self._search_agent = build_search_agent(settings)
         self._writer = build_writer(settings)
         self._critic = build_critic(settings)
 
-    async def run(self, query: str) -> AsyncIterator[str]:
+    async def clarify(self, query: str) -> list[str]:
+        """Ask the clarifier whether the query needs sharpening.
+
+        Returns the questions to put to the user. An empty list means the
+        clarifier judged the query specific enough to plan against directly.
+        The caller decides whether to call this at all — `run()` is fully
+        usable without it.
+        """
+        result = await Runner.run(self._clarifier, f"Query: {query}")
+        return result.final_output_as(ClarificationQuestions).questions
+
+    async def run(
+        self,
+        query: str,
+        clarifications: list[Clarification] | None = None,
+    ) -> AsyncIterator[str]:
         trace_id = gen_trace_id()
         with trace("Deep research", trace_id=trace_id):
             yield f"View trace: https://platform.openai.com/traces/trace?trace_id={trace_id}"
 
-            yield "Planning searches…"
-            plan = await self._plan(query)
+            if clarifications:
+                yield f"Planning searches with {len(clarifications)} clarification(s)…"
+            else:
+                yield "Planning searches…"
+            plan = await self._plan(query, clarifications)
             yield f"Planned {len(plan.searches)} searches. Searching…"
 
             results = await self._search(plan)
@@ -82,8 +109,18 @@ class ResearchManager:
             yield f"Saved to {path}"
             yield report.markdown_report
 
-    async def _plan(self, query: str) -> WebSearchPlan:
-        result = await Runner.run(self._planner, f"Query: {query}")
+    async def _plan(
+        self,
+        query: str,
+        clarifications: list[Clarification] | None,
+    ) -> WebSearchPlan:
+        prompt = f"Query: {query}"
+        if clarifications:
+            block = "\n".join(
+                f"- Q: {c.question}\n  A: {c.answer}" for c in clarifications
+            )
+            prompt += f"\n\nClarifications (HARD CONSTRAINTS on every search):\n{block}"
+        result = await Runner.run(self._planner, prompt)
         return result.final_output_as(WebSearchPlan)
 
     async def _search(self, plan: WebSearchPlan) -> list[str]:

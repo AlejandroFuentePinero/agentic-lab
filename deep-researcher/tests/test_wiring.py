@@ -8,6 +8,11 @@ wiring genuinely breaks.
 
 from __future__ import annotations
 
+from src.clarification import (
+    Clarification,
+    ClarificationQuestions,
+    build_clarifier,
+)
 from src.reporting import (
     CritiqueResult,
     ReportData,
@@ -15,6 +20,27 @@ from src.reporting import (
     build_writer,
 )
 from src.research import WebSearchItem, WebSearchPlan, build_planner, build_search_agent
+
+
+def test_clarifier_returns_structured_clarificationquestions(settings):
+    clarifier = build_clarifier(settings)
+
+    assert clarifier.name == "Clarifier"
+    assert clarifier.output_type is ClarificationQuestions
+
+
+def test_clarificationquestions_defaults_to_empty_list():
+    # Empty list is the *expected* output for already-specific queries.
+    # The default_factory keeps that path cheap for the LLM.
+    cq = ClarificationQuestions()
+    assert cq.questions == []
+
+
+def test_clarification_pairs_question_with_answer():
+    c = Clarification(question="Which country?", answer="Spain")
+
+    assert c.question == "Which country?"
+    assert c.answer == "Spain"
 
 
 def test_planner_returns_structured_websearchplan(settings):

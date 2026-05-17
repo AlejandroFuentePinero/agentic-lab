@@ -25,8 +25,8 @@ def load_settings() -> Settings:
         sendgrid_api_key=_required("SENDGRID_API_KEY"),
         openai_api_key=_required("OPENAI_API_KEY"),
         anthropic_api_key=_required("ANTHROPIC_API_KEY"),
-        from_email=os.environ.get("SDR_FROM_EMAIL", "alejandrofuentepinero@gmail.com"),
-        to_email=os.environ.get("SDR_TO_EMAIL", "alejandrofuentepinero@gmail.com"),
+        from_email=os.environ.get("SDR_FROM_EMAIL", "you@example.com"),
+        to_email=os.environ.get("SDR_TO_EMAIL", "you@example.com"),
         sales_persona_model=os.environ.get("SDR_SALES_MODEL", "claude-sonnet-4-6"),
         utility_model=os.environ.get("SDR_UTILITY_MODEL", "gpt-4o-mini"),
     )

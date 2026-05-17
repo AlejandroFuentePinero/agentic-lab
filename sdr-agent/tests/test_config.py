@@ -42,8 +42,8 @@ def test_defaults_applied_when_only_required_vars_are_set(monkeypatch):
 
     s = load_settings()
 
-    assert s.from_email == "alejandrofuentepinero@gmail.com"
-    assert s.to_email == "alejandrofuentepinero@gmail.com"
+    assert s.from_email == "you@example.com"
+    assert s.to_email == "you@example.com"
     assert s.sales_persona_model == "claude-sonnet-4-6"
     assert s.utility_model == "gpt-4o-mini"
 

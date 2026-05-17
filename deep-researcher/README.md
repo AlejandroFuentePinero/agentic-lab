@@ -2,7 +2,7 @@
 
 A small multi-agent **deep research** tool built on the [`openai-agents`](https://github.com/openai/openai-agents-python) SDK. Optionally **clarifies** an ambiguous query first, plans a set of web searches, runs them in parallel, synthesises the results into a long-form markdown report, **critiques** the draft against a fixed rubric, and revises up to twice if the critic flags issues — then saves the final report locally. Driven through a Gradio UI with live progress, or through a CLI for headless / scripted runs.
 
-This project is the second inhabitant of the [`agentic-lab`](../) monorepo. It is a re-implementation of the deep-research example in `example-code/deep_research-example/`, with three intentional differences: a **conservative clarifier** that asks only when the answer would change which searches to run, a **critic + bounded revision loop** (new pattern not exercised by `sdr-agent`), and **local markdown persistence** instead of SendGrid delivery.
+This project is the second inhabitant of the [`agentic-lab`](../) monorepo. Compared to `sdr-agent` it adds three patterns: a **conservative clarifier** that asks only when the answer would change which searches to run, a **critic + bounded revision loop** to catch fabricated citations, and **local markdown persistence** for the final report.
 
 ---
 

@@ -2,7 +2,7 @@
 
 A small multi-agent **Sales Development Representative** (SDR) demo built on the [`openai-agents`](https://github.com/openai/openai-agents-python) SDK. Drafts three different cold-outreach emails in parallel (using Anthropic Claude Sonnet personas), picks the best one, formats it as HTML, and delivers it through SendGrid — all driven by an LLM "Sales Manager" that uses sub-agents as tools and hands off to a delivery agent.
 
-This project is the first inhabitant of the [`agentic-lab`](../) monorepo. It is the fully-implemented version of Lab 2 + Lab 3 from `example-code/sdr-example/`, ported off the lab's multi-provider setup to a clean **Anthropic + OpenAI only** stack and a modular Python package.
+This project is the first inhabitant of the [`agentic-lab`](../) monorepo. It exercises the agent-as-tool, handoff, function-tool, input/output-guardrail, and structured-output patterns on a clean **Anthropic + OpenAI only** stack, packaged as a modular Python project.
 
 ---
 
@@ -67,7 +67,7 @@ flowchart LR
   | `ANTHROPIC_API_KEY` | Sonnet for the three sales-persona agents (via LiteLLM)       |
   | `SENDGRID_API_KEY`  | SendGrid mail send                                            |
 
-- A **verified single sender** in your SendGrid account matching `SDR_FROM_EMAIL` (defaults to `alejandrofuentepinero@gmail.com`). Without verification, SendGrid rejects the send.
+- A **verified single sender** in your SendGrid account matching `SDR_FROM_EMAIL` (set this in `.env`; the default `you@example.com` is a placeholder and will be rejected by SendGrid). Without verification, SendGrid rejects the send.
 
 ---
 
@@ -93,8 +93,8 @@ All settings are env-driven (`src/config.py`). Required keys are listed above; t
 
 | Variable             | Default                          | Notes                                       |
 | -------------------- | -------------------------------- | ------------------------------------------- |
-| `SDR_FROM_EMAIL`     | `alejandrofuentepinero@gmail.com`| Must be verified in SendGrid                |
-| `SDR_TO_EMAIL`       | `alejandrofuentepinero@gmail.com`| Recipient                                   |
+| `SDR_FROM_EMAIL`     | `you@example.com`                | Must be verified in SendGrid — set this     |
+| `SDR_TO_EMAIL`       | `you@example.com`                | Recipient — set this                        |
 | `SDR_SALES_MODEL`    | `claude-sonnet-4-6`              | Anthropic model for the three personas      |
 | `SDR_UTILITY_MODEL`  | `gpt-4o-mini`                    | OpenAI model for utility sub-agents         |
 
